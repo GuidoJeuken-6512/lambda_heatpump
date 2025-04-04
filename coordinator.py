@@ -1,15 +1,12 @@
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pymodbus.exceptions import ConnectionException
 from pymodbus.client import ModbusTcpClient
-#from pymodbus.payload import PayloadDecoder
 from pymodbus.payload import BinaryPayloadDecoder, BinaryPayloadBuilder
 from pymodbus.constants import Endian
 from datetime import timedelta
 import logging
 
 logging.getLogger("pymodbus.logging").setLevel(logging.ERROR)
-
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,7 +20,6 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
 
         _LOGGER.debug(f"Initializing Coordinator: Host={self.host}, Port={self.port}, Slave ID={self.slave_id}")
 
-        # Überprüfe, ob Host und Port korrekt sind
         if not self.host or not self.port:
             raise ValueError("Invalid host or port for Modbus client.")
 
@@ -42,42 +38,47 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
 
     def clear_registers(self):
         self._registers_to_read.clear()
+
+    async def _ensure_client(self):
+        """Stelle sicher, dass ein aktiver Modbus-Client vorhanden ist."""
+        if not self._client or not self._client.is_socket_open():
+            _LOGGER.debug("Kein aktiver Client gefunden oder Socket nicht geöffnet. Erstelle neuen Client.")
+            self._client = ModbusTcpClient(self.host, port=self.port)
+            if not await self.hass.async_add_executor_job(self._client.connect):
+                self._client = None
+                raise UpdateFailed(f"Failed to connect to Modbus client {self.host}:{self.port}")
+
     async def _async_update_data(self):
         try:
-            if not self._client or not self._client.is_socket_open():
-                self._client = ModbusTcpClient(self.host, port=self.port)
-                if not await self.hass.async_add_executor_job(self._client.connect):
-                    raise UpdateFailed(f"Failed to connect to Modbus client {self.host}:{self.port}")
-
+            await self._ensure_client()
             data = {}
 
             for register, register_type in self._registers_to_read.items():
                 try:
+                    count = 2 if register_type in ['int32', 'float32'] else 1
                     result = await self.hass.async_add_executor_job(
-                        self._read_register,
-                        register,
-                        2 if register_type in ['int32', 'float32'] else 1
+                        self._read_register, register, count
                     )
                     if result.isError():
-                        _LOGGER.error(f"Error reading register {register}: {result}")
+                        _LOGGER.error("Error reading register %s: %s", register, result)
                         data[f"register_{register}"] = None
                     else:
                         decoder = BinaryPayloadDecoder.fromRegisters(result.registers, byteorder=Endian.BIG)
                         value = self._decode_value(decoder, register_type)
                         data[f"register_{register}"] = value
-                        _LOGGER.debug(f"Register {register} read: {value}")
+                        _LOGGER.debug("Register %s read: %s", register, value)
                 except Exception as e:
-                    _LOGGER.error(f"Error reading register {register}: {e}")
+                    _LOGGER.error("Error reading register %s: %s", register, e)
                     data[f"register_{register}"] = None
 
             return data
         except ConnectionException as conn_err:
-            _LOGGER.error(f"Connection error: {conn_err}")
+            _LOGGER.error("Connection error: %s", conn_err)
             raise UpdateFailed(f"Connection error: {conn_err}")
         except Exception as err:
-            _LOGGER.exception(f"Error fetching data: {err}")
+            _LOGGER.exception("Error fetching data: %s", err)
             raise UpdateFailed(f"Error fetching data: {err}")
-    
+
     def _read_register(self, register, count):
         return self._client.read_holding_registers(register, count=count, slave=self.slave_id)
 
@@ -91,23 +92,20 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
         elif register_type == 'float32':
             return decoder.decode_32bit_float()
         else:
-            _LOGGER.error(f"Unbekannter Registertyp {register_type}")
+            _LOGGER.error("Unbekannter Registertyp %s", register_type)
             return None
 
     async def async_shutdown(self):
         """Schließe die Verbindung beim Herunterfahren."""
         if self._client:
             self._client.close()
+            self._client = None
 
     async def async_write_register(self, register, value):
         """Schreibe einen Wert in ein Modbus-Register."""
         try:
-            if not self._client or not self._client.is_socket_open():
-                self._client = ModbusTcpClient(self.host, port=self.port)
-                if not await self.hass.async_add_executor_job(self._client.connect):
-                    raise UpdateFailed(f"Failed to connect to Modbus client {self.host}:{self.port}")
+            await self._ensure_client()
 
-            # Erstelle eine Funktion, die das Schreiben durchführt
             def write_to_register():
                 return self._client.write_registers(
                     address=register,
@@ -115,23 +113,17 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
                     slave=self.slave_id
                 )
 
-            # Führe die Schreiboperation in einem Executor aus
             result = await self.hass.async_add_executor_job(write_to_register)
 
             if result.isError():
                 raise UpdateFailed(f"Failed to write to register {register}: {result}")
 
-            _LOGGER.debug(f"Successfully wrote value {value} to register {register}")
-
-            # Aktualisiere die lokalen Daten
+            _LOGGER.debug("Successfully wrote value %s to register %s", value, register)
             await self.async_request_refresh()
 
         except Exception as err:
-            _LOGGER.exception(f"Error writing to register {register}: {err}")
+            _LOGGER.exception("Error writing to register %s: %s", register, err)
             raise UpdateFailed(f"Error writing to register {register}: {err}")
-
-
 
     def _write_registers(self, register, payload, count):
         return self._client.write_registers(register, payload, slave=self.slave_id, count=count)
-
