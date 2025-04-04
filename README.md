@@ -6,3 +6,5 @@ The basic functions work, but there is still some work to do
 - Second climate sensor for room thermostat 
 - Modbus polling interval via config_flow 
 - Modbus registers depending on firmware.
+
+ If someone wants to help, feel free to contact me!

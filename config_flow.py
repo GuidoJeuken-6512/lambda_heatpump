@@ -126,7 +126,7 @@ class LambdaHeatpumpsOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
         _LOGGER.debug("Options flow initialized")
 
     async def async_step_init(
@@ -139,13 +139,13 @@ class LambdaHeatpumpsOptionsFlow(config_entries.OptionsFlow):
             _LOGGER.debug("Processing user input for options update")
 
             if (
-                user_input[CONF_MODBUS_HOST] != self.config_entry.data[CONF_MODBUS_HOST]
-                or user_input[CONF_SLAVE_ID] != self.config_entry.data[CONF_SLAVE_ID]
+                user_input[CONF_MODBUS_HOST] != self._config_entry.data[CONF_MODBUS_HOST]
+                or user_input[CONF_SLAVE_ID] != self._config_entry.data[CONF_SLAVE_ID]
             ):
                 try:
                     await self._test_modbus_connection(
                         user_input[CONF_MODBUS_HOST],
-                        self.config_entry.data[CONF_MODBUS_PORT],
+                        self._config_entry.data[CONF_MODBUS_PORT],
                         user_input[CONF_SLAVE_ID],
                     )
                 except ConnectionException:
@@ -153,9 +153,9 @@ class LambdaHeatpumpsOptionsFlow(config_entries.OptionsFlow):
                 except ValueError:
                     return self.async_abort(reason="invalid_slave_id")
 
-                new_data = {**self.config_entry.data, **user_input}
+                new_data = {**self._config_entry.data, **user_input}
                 self.hass.config_entries.async_update_entry(
-                    self.config_entry, data=new_data
+                    self._config_entry, data=new_data
                 )
                 return self.async_abort(reason="restart_required")
 
@@ -192,31 +192,31 @@ class LambdaHeatpumpsOptionsFlow(config_entries.OptionsFlow):
             {
                 vol.Required(
                     CONF_MODBUS_HOST,
-                    default=self.config_entry.data[CONF_MODBUS_HOST],
+                    default=self._config_entry.data[CONF_MODBUS_HOST],
                 ): str,
                 vol.Required(
                     CONF_SLAVE_ID,
-                    default=self.config_entry.data[CONF_SLAVE_ID],
+                    default=self._config_entry.data[CONF_SLAVE_ID],
                 ): int,
                 vol.Required(
                     CONF_AMOUNT_OF_HEATPUMPS,
-                    default=self.config_entry.options.get(CONF_AMOUNT_OF_HEATPUMPS, 1),
+                    default=self._config_entry.options.get(CONF_AMOUNT_OF_HEATPUMPS, 1),
                 ): int,
                 vol.Required(
                     CONF_AMOUNT_OF_BOILERS,
-                    default=self.config_entry.options.get(CONF_AMOUNT_OF_BOILERS, 1),
+                    default=self._config_entry.options.get(CONF_AMOUNT_OF_BOILERS, 1),
                 ): int,
                 vol.Required(
                     CONF_AMOUNT_OF_BUFFERS,
-                    default=self.config_entry.options.get(CONF_AMOUNT_OF_BUFFERS, 1),
+                    default=self._config_entry.options.get(CONF_AMOUNT_OF_BUFFERS, 1),
                 ): int,
                 vol.Required(
                     CONF_AMOUNT_OF_SOLAR,
-                    default=self.config_entry.options.get(CONF_AMOUNT_OF_SOLAR, 0),
+                    default=self._config_entry.options.get(CONF_AMOUNT_OF_SOLAR, 0),
                 ): int,
                 vol.Required(
                     CONF_AMOUNT_OF_HEAT_CIRCUITS,
-                    default=self.config_entry.options.get(CONF_AMOUNT_OF_HEAT_CIRCUITS, 1),
+                    default=self._config_entry.options.get(CONF_AMOUNT_OF_HEAT_CIRCUITS, 1),
                 ): int,
             }
         )
