@@ -1,0 +1,92 @@
+{
+    "title": "Lambda Wärmepumpen",
+    "config": {
+      "step": {
+        "user": {
+          "title": "Lambda Wärmepumpe einrichten",
+          "description": "Richten Sie Ihre Lambda Wärmepumpe ein, um sie in Home Assistant zu integrieren.",
+          "data": {
+            "modbus_host": "Modbus Host",
+            "modbus_port": "Modbus Port",
+            "slave_id": "Slave-ID",
+            "model": "Modell",
+            "amount_of_heatpumps": "Anzahl der Wärmepumpen",
+            "amount_of_boilers": "Anzahl der Brauchwasserspeicher",
+            "amount_of_buffers": "Anzahl der Pufferspeicher",
+            "amount_of_solar": "Anzahl der Solarthermieanlagen",
+            "amount_of_heat_circuits": "Anzahl der Heizkreise"
+          }
+        },
+        "reauth_confirm": {
+          "title": "Lambda Wärmepumpe neu einrichten",
+          "description": "Ihr Konto kann nicht authentifiziert werden. Bitte geben Sie Ihre Anmeldedaten erneut ein."
+        }
+      },
+      "abort": {
+        "already_configured": "Gerät ist bereits konfiguriert.",
+        "no_devices_found": "Keine Geräte gefunden.",
+        "cannot_connect": "Verbindung zum Gerät fehlgeschlagen.",
+        "invalid_slave_id": "Ungültige Slave-ID.",
+        "restart_required": "Konfiguration geändert. Bitte starten Sie Home Assistant neu."
+      },
+      "error": {
+        "cannot_connect": "Kann keine Verbindung zum Gerät herstellen.",
+        "invalid_slave_id": "Ungültige Slave-ID.",
+        "unknown_error": "Ein unerwarteter Fehler ist aufgetreten."
+      },
+        "create_entry": {
+            "title": "Lambda Wärmepumpe ({model})"
+        },
+        "success": {
+            "title": "Erfolg!",
+            "description": "Konfiguration für {device_model} erstellt.\n\nFolgende Geräte wurden gefunden:\n\n{device_name}\n{model} ({manufacturer})\nBereich"
+        },
+        "title": "Lambda Wärmepumpe",
+        "device_name": "Lambda Wärmepumpe",
+        "device_model": "Wärmepumpenmodell",
+        "manufacturer": "LAMBDA Wärmepumpen GmbH"
+    },
+    "modbus": {
+        "error": {
+            "invalid_response": "Ungültige Antwort vom Gerät.",
+            "no_response": "Keine Antwort vom Gerät.",
+            "timeout": "Zeitüberschreitung beim Abrufen von Daten vom Gerät."
+    },
+    
+    "operating_states": {
+        "OFF": "aus",
+        "AUTOMATIK": "automatisch",
+        "MANUAL": "manuell",
+        "ERROR": "Fehler",
+        "OFFLINE": "offline"
+    },
+    "entity": {
+        "sensor": {
+            
+            "general_ambient_error_number": {
+                "name": "Allgemein: Fehlernummer"
+            },
+            "general_ambient_operating_state": {
+                "name": "Allgemein: Betriebszustand"
+            },
+            "general_ambient_actual_ambient_temp": {
+                "name": "Allgemein: aktuelle Außentemperatur"
+            },
+            "general_ambient_average_ambient_temp_1h": {
+                "name": "Allgemein: Durchschnittliche Außentemperatur (1h)"
+            },
+            "general_ambient_calculated_ambient_temp": {
+                "name": "Allgemein: errechnete Außentemperatur"
+            },
+            "heatpump_1_state": {
+                "name": "WP 1: Zustand"
+            }
+            
+        }
+  }
+  
+    }
+}   
+     
+
+ 
