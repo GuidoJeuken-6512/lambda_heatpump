@@ -5,13 +5,26 @@ from pymodbus.payload import BinaryPayloadDecoder, BinaryPayloadBuilder
 from pymodbus.constants import Endian
 from datetime import timedelta
 import logging
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
 import asyncio
 from functools import wraps
+from dataclasses import dataclass
 
 logging.getLogger("pymodbus.logging").setLevel(logging.ERROR)
 
 _LOGGER = logging.getLogger(__name__)
+
+@dataclass
+class ModbusConfig:
+    """Konfiguration für die Modbus-Verbindung."""
+    host: str
+    port: int
+    slave_id: int
+    connection_timeout: int = 5
+    retry_count: int = 3
+    retry_delay: float = 1.0
+    update_interval: timedelta = timedelta(seconds=10)
+    max_register_chunk_size: int = 50
 
 def retry_on_failure(max_retries: int = 3, delay: float = 1.0):
     def decorator(func):
@@ -32,35 +45,69 @@ def retry_on_failure(max_retries: int = 3, delay: float = 1.0):
     return decorator
 
 class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
+    """Koordinator für die Lambda-Wärmepumpe über Modbus."""
+    
     def __init__(
         self,
         hass: Any,
-        host: str,
-        port: int,
-        slave_id: int,
-        update_interval: timedelta = timedelta(seconds=10),
-        connection_timeout: int = 5
+        config: ModbusConfig,
     ):
-        self.host = host
-        self.port = port
-        self.slave_id = slave_id
-        self.connection_timeout = connection_timeout
+        """Initialisiere den Lambda-Wärmepumpen-Koordinator.
+        
+        Args:
+            hass: Home Assistant Instanz
+            config: Modbus-Konfiguration
+        """
+        self.config = config
+        self._validate_config()
+        
         self._registers_to_read: Dict[int, str] = {}
         self._client: Optional[ModbusTcpClient] = None
         self._last_successful_update: Optional[float] = None
         self._connection_status: bool = False
+        self._register_cache: Dict[int, Any] = {}
+        self._cache_timestamp: Dict[int, float] = {}
+        self._cache_duration: float = 5.0  # Cache-Dauer in Sekunden
 
-        _LOGGER.debug(f"Initializing Coordinator: Host={self.host}, Port={self.port}, Slave ID={self.slave_id}")
-
-        if not self.host or not self.port:
-            raise ValueError("Invalid host or port for Modbus client.")
+        _LOGGER.debug(
+            "Initializing Coordinator: Host=%s, Port=%d, Slave ID=%d, "
+            "Update Interval=%s, Connection Timeout=%d",
+            self.config.host,
+            self.config.port,
+            self.config.slave_id,
+            self.config.update_interval,
+            self.config.connection_timeout
+        )
 
         super().__init__(
             hass,
             _LOGGER,
             name="LambdaHeatpumpCoordinator",
-            update_interval=update_interval,
+            update_interval=self.config.update_interval,
         )
+
+    def _validate_config(self) -> None:
+        """Validiere die Modbus-Konfiguration."""
+        if not self.config.host:
+            raise ValueError("Host-Adresse darf nicht leer sein")
+            
+        if not 1 <= self.config.port <= 65535:
+            raise ValueError(f"Ungültiger Port: {self.config.port}")
+            
+        if not 1 <= self.config.slave_id <= 247:
+            raise ValueError(f"Ungültige Slave-ID: {self.config.slave_id}")
+            
+        if self.config.connection_timeout < 1:
+            raise ValueError(f"Ungültiger Connection Timeout: {self.config.connection_timeout}")
+            
+        if self.config.retry_count < 1:
+            raise ValueError(f"Ungültige Anzahl von Wiederholungsversuchen: {self.config.retry_count}")
+            
+        if self.config.retry_delay < 0:
+            raise ValueError(f"Ungültige Verzögerung zwischen Wiederholungsversuchen: {self.config.retry_delay}")
+            
+        if self.config.max_register_chunk_size < 1 or self.config.max_register_chunk_size > 125:
+            raise ValueError(f"Ungültige Chunk-Größe: {self.config.max_register_chunk_size}")
 
     def add_register(self, register, register_type='int16'):
         self._registers_to_read[register] = register_type
@@ -77,14 +124,14 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
         if not self._client or not self._client.is_socket_open():
             _LOGGER.debug("Kein aktiver Client gefunden oder Socket nicht geöffnet. Erstelle neuen Client.")
             self._client = ModbusTcpClient(
-                self.host,
-                port=self.port,
-                timeout=self.connection_timeout
+                self.config.host,
+                port=self.config.port,
+                timeout=self.config.connection_timeout
             )
             if not await self.hass.async_add_executor_job(self._client.connect):
                 self._client = None
                 self._connection_status = False
-                raise UpdateFailed(f"Failed to connect to Modbus client {self.host}:{self.port}")
+                raise UpdateFailed(f"Failed to connect to Modbus client {self.config.host}:{self.config.port}")
             self._connection_status = True
 
     async def _async_update_data(self) -> Dict[str, Any]:
@@ -248,7 +295,7 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
             if count < 1 or count > 125:
                 raise ValueError(f"Invalid register count: {count}")
                 
-            return self._client.read_holding_registers(register, count=count, slave=self.slave_id)
+            return self._client.read_holding_registers(register, count=count, slave=self.config.slave_id)
         except Exception as e:
             _LOGGER.error(f"Error in _read_register: {e}")
             raise
@@ -268,7 +315,7 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
                 return self._client.write_registers(
                     address=register,
                     values=[value],
-                    slave=self.slave_id
+                    slave=self.config.slave_id
                 )
 
             result = await self.hass.async_add_executor_job(write_to_register)
@@ -284,4 +331,4 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error writing to register {register}: {err}")
 
     def _write_registers(self, register, payload, count):
-        return self._client.write_registers(register, payload, slave=self.slave_id, count=count)
+        return self._client.write_registers(register, payload, slave=self.config.slave_id, count=count)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -18,7 +19,7 @@ from .const import (
     CONF_SLAVE_ID,
     CONF_MODEL
 )
-from .coordinator import LambdaHeatpumpCoordinator
+from .coordinator import LambdaHeatpumpCoordinator, ModbusConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,11 +38,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error("Konfigurationsschlüssel '%s' fehlt im Config Entry %s.", key, entry.entry_id)
             raise ConfigEntryNotReady(f"Fehlender Konfigurationsschlüssel: {key}")
 
+    # Erstelle die Modbus-Konfiguration
+    modbus_config = ModbusConfig(
+        host=entry.data[CONF_MODBUS_HOST],
+        port=entry.data[CONF_MODBUS_PORT],
+        slave_id=entry.data[CONF_SLAVE_ID],
+        connection_timeout=5,  # Standard-Timeout
+        retry_count=3,  # Standard-Anzahl von Wiederholungsversuchen
+        retry_delay=1.0,  # Standard-Verzögerung zwischen Wiederholungsversuchen
+        update_interval=timedelta(seconds=10),  # Standard-Update-Intervall
+        max_register_chunk_size=50  # Standard-Chunk-Größe
+    )
+
     coordinator = LambdaHeatpumpCoordinator(
-        hass,
-        entry.data[CONF_MODBUS_HOST],
-        entry.data[CONF_MODBUS_PORT],
-        entry.data[CONF_SLAVE_ID]
+        hass=hass,
+        config=modbus_config
     )
 
     try:
