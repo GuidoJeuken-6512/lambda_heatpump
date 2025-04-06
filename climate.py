@@ -36,22 +36,86 @@ class LambdaClimateEntityDescription(ClimateEntityDescription):
     factor: float = 0.1
     data_type: str = "int16"
     precision: float = 0.5
-    force_heat_only: bool = False  # New field to enforce HEAT-only mode
+    force_heat_only: bool = False
+    device_type: str = "boiler"  # "boiler", "heatpump", "buffer", etc.
+    device_index: int = 1  # Index des Geräts (1-based)
+    supports_cooling: bool = False
+    supports_auto: bool = False
+    supports_fan_only: bool = False
+    supports_dry: bool = False
+    min_temp: float = 5.0
+    max_temp: float = 35.0
+    temp_step: float = 0.5
 
 CLIMATE_DESCRIPTIONS: tuple[LambdaClimateEntityDescription, ...] = (
+    # Boiler 1
     LambdaClimateEntityDescription(
         key="boiler_1_climate",
         name="Boiler 1",
         translation_key="boiler_climate",
         register_temp=2002,
         register_setpoint=2050,
-        register_mode=None,  # Disable mode register for HEAT-only
+        register_mode=None,
         register_setpoint_high=70,
         register_setpoint_low=30,
         factor=0.1,
-        force_heat_only=True  # Enable HEAT-only for this specific entity
+        data_type="int16",
+        precision=0.5,
+        force_heat_only=True,
+        device_type="boiler",
+        device_index=1,
+        supports_cooling=False,
+        supports_auto=False,
+        supports_fan_only=False,
+        supports_dry=False,
+        min_temp=25.0,
+        max_temp=65.0,
+        temp_step=0.5,
     ),
-    # Add more descriptions as needed
+    # Heatpump 1
+    LambdaClimateEntityDescription(
+        key="heatpump_1_climate",
+        name="Heatpump 1",
+        translation_key="heatpump_climate",
+        register_temp=1004,  # Flowline Temperature
+        register_setpoint=1015,  # Flowline Setpoint
+        register_mode=1003,  # Operating State
+        register_setpoint_high=60,
+        register_setpoint_low=20,
+        factor=0.01,
+        force_heat_only=False,
+        device_type="heatpump",
+        device_index=1,
+        supports_cooling=True,
+        supports_auto=True,
+        supports_fan_only=False,
+        supports_dry=False,
+        min_temp=5.0,
+        max_temp=35.0,
+        temp_step=0.5,
+    ),
+    # Buffer 1
+    LambdaClimateEntityDescription(
+        key="buffer_1_climate",
+        name="Buffer 1",
+        translation_key="buffer_climate",
+        register_temp=3002,  # Buffer Temperature
+        register_setpoint=3050,  # Buffer Setpoint
+        register_mode=None,
+        register_setpoint_high=80,
+        register_setpoint_low=30,
+        factor=0.1,
+        force_heat_only=True,
+        device_type="buffer",
+        device_index=1,
+        supports_cooling=False,
+        supports_auto=False,
+        supports_fan_only=False,
+        supports_dry=False,
+        min_temp=5.0,
+        max_temp=35.0,
+        temp_step=0.5,
+    ),
 )
 
 class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], ClimateEntity):
@@ -60,7 +124,6 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
     _attr_has_entity_name = True
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
-    _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]  # Default modes
     _enable_turn_on_off_backwards_compatibility = False
 
     entity_description: LambdaClimateEntityDescription
@@ -79,10 +142,23 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
         self._attr_device_info = device_info
         self._attr_unique_id = f"{config_entry.entry_id}_{description.key}"
         
-        # Override modes if force_heat_only is True
-        if description.force_heat_only:
-            self._attr_hvac_modes = [HVACMode.HEAT]
-            self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+        # Set supported features based on device capabilities
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+        if description.register_mode is not None:
+            self._attr_supported_features |= ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON
+        
+        # Set HVAC modes based on device capabilities
+        self._attr_hvac_modes = [HVACMode.HEAT]
+        if description.supports_cooling:
+            self._attr_hvac_modes.append(HVACMode.COOL)
+        if description.supports_auto:
+            self._attr_hvac_modes.append(HVACMode.AUTO)
+        if description.supports_fan_only:
+            self._attr_hvac_modes.append(HVACMode.FAN_ONLY)
+        if description.supports_dry:
+            self._attr_hvac_modes.append(HVACMode.DRY)
+        if not description.force_heat_only:
+            self._attr_hvac_modes.append(HVACMode.OFF)
         
         # Register required modbus registers
         coordinator.add_register(description.register_temp, description.data_type)
@@ -114,6 +190,8 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
             return HVACMode.HEAT
             
         if (mode := self.coordinator.data.get(f"register_{self.entity_description.register_mode}")) is not None:
+            if self.entity_description.supports_cooling:
+                return HVACMode.COOL if mode == 2 else HVACMode.HEAT
             return HVACMode.HEAT if mode else HVACMode.OFF
         return HVACMode.OFF
 
@@ -126,22 +204,24 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
         if None in (current_temp := self.current_temperature, target_temp := self.target_temperature):
             return None
             
+        if self.hvac_mode == HVACMode.COOL:
+            return HVACAction.COOLING if current_temp > target_temp else HVACAction.IDLE
         return HVACAction.HEATING if current_temp < target_temp else HVACAction.IDLE
 
     @property
     def target_temperature_step(self) -> float:
         """Return the supported step of target temperature."""
-        return self.entity_description.precision
+        return self.entity_description.temp_step
 
     @property
     def min_temp(self) -> float:
         """Return the minimum temperature."""
-        return self.entity_description.register_setpoint_low
+        return self.entity_description.min_temp
 
     @property
     def max_temp(self) -> float:
         """Return the maximum temperature."""
-        return self.entity_description.register_setpoint_high
+        return self.entity_description.max_temp
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
@@ -150,11 +230,6 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
             
         scaled_temp = int(temperature / self.entity_description.factor)
         await self.coordinator.async_write_register(self.entity_description.register_setpoint, scaled_temp)
-        # await self.coordinator.async_write_register(
-        #     self.entity_description.register_setpoint,
-        #     scaled_temp,
-        #     self.entity_description.data_type
-        # )
         await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -166,7 +241,13 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
         if self.entity_description.register_mode is None:
             return
             
-        value = 1 if hvac_mode == HVACMode.HEAT else 0
+        if hvac_mode == HVACMode.OFF:
+            value = 0
+        elif hvac_mode == HVACMode.COOL and self.entity_description.supports_cooling:
+            value = 2
+        else:
+            value = 1
+            
         await self.coordinator.async_write_register(
             self.entity_description.register_mode,
             value,
@@ -187,31 +268,41 @@ async def async_setup_entry(
 ) -> None:
     """Set up Lambda heatpump climate entities from a config entry."""
     coordinator: LambdaHeatpumpCoordinator = hass.data[DOMAIN][config_entry.entry_id]
-    num_boilers = config_entry.data.get("amount_of_boilers", 1)
     model = config_entry.data.get("model", "Unknown Model")
+    
+    # Get device counts from config
+    num_boilers = config_entry.data.get("amount_of_boilers", 1)
+    num_heatpumps = config_entry.data.get("amount_of_heatpumps", 1)
+    num_buffers = config_entry.data.get("amount_of_buffers", 1)
 
     entities: list[LambdaHeatpumpClimate] = []
     
-    for i in range(1, num_boilers + 1):
-        device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"{config_entry.entry_id}_boiler_{i}")},
-            name=f"Boiler {i}",
-            manufacturer=MANUFACTURER,
-            model=model,
-            via_device=(DOMAIN, config_entry.entry_id),
-        )
+    # Create entities for each device type
+    for device_type, count in [
+        ("boiler", num_boilers),
+        ("heatpump", num_heatpumps),
+        ("buffer", num_buffers)
+    ]:
+        for i in range(1, count + 1):
+            device_info = DeviceInfo(
+                identifiers={(DOMAIN, f"{config_entry.entry_id}_{device_type}_{i}")},
+                name=f"{device_type.capitalize()} {i}",
+                manufacturer=MANUFACTURER,
+                model=model,
+                via_device=(DOMAIN, config_entry.entry_id),
+            )
 
-        # Find matching description
-        for description in CLIMATE_DESCRIPTIONS:
-            if description.key == f"boiler_{i}_climate":
-                entities.append(
-                    LambdaHeatpumpClimate(
-                        coordinator=coordinator,
-                        config_entry=config_entry,
-                        description=description,
-                        device_info=device_info,
+            # Find matching description
+            for description in CLIMATE_DESCRIPTIONS:
+                if description.device_type == device_type and description.device_index == i:
+                    entities.append(
+                        LambdaHeatpumpClimate(
+                            coordinator=coordinator,
+                            config_entry=config_entry,
+                            description=description,
+                            device_info=device_info,
+                        )
                     )
-                )
-                break
+                    break
 
-    async_add_entities(entities)
+    async_add_entities(entities, update_before_add=True)

@@ -109,8 +109,19 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
         if self.config.max_register_chunk_size < 1 or self.config.max_register_chunk_size > 125:
             raise ValueError(f"Ungültige Chunk-Größe: {self.config.max_register_chunk_size}")
 
-    def add_register(self, register, register_type='int16'):
+    def add_register(self, register: int, register_type: str = 'int16') -> None:
+        """Füge ein Register zur Liste der zu lesenden Register hinzu.
+        
+        Args:
+            register: Die Register-Adresse
+            register_type: Der Typ des Registers (int16, uint16, int32, float32)
+        """
+        if register_type not in ['int16', 'uint16', 'int32', 'float32']:
+            _LOGGER.warning(f"Unsupported register type: {register_type}. Using default type 'int16'")
+            register_type = 'int16'
+            
         self._registers_to_read[register] = register_type
+        _LOGGER.debug(f"Added register {register} with type {register_type}")
     
     def remove_register(self, register):
         self._registers_to_read.pop(register, None)
@@ -199,105 +210,85 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
         """Lese eine Gruppe von Registern effizient."""
         if not registers:
             return {}
-        
+            
         values = {}
         register_chunks = self._split_registers_into_chunks(registers)
         
         for chunk in register_chunks:
             try:
                 start_register = chunk[0]
-                # Berechne die Anzahl der zu lesenden Register basierend auf dem Typ
+                count = len(chunk)
+                
+                # Für 32-Bit-Werte müssen wir die Anzahl der Register anpassen
                 if register_type in ['int32', 'float32']:
-                    # Für 32-Bit-Werte müssen wir sicherstellen, dass wir genug Register lesen
-                    count = (chunk[-1] - start_register + 2)
-                else:
-                    count = (chunk[-1] - start_register + 1)
+                    count = count * 2
                 
-                # Stelle sicher, dass wir mindestens 1 Register lesen
-                count = max(1, count)
+                _LOGGER.debug(f"Reading {count} registers starting at {start_register}")
                 
-                _LOGGER.debug(f"Reading registers from {start_register} to {start_register + count - 1}")
-                
-                result = await self.hass.async_add_executor_job(
-                    self._read_register, start_register, count
-                )
+                # Versuche zuerst die Holding-Register zu lesen
+                try:
+                    result = await self.hass.async_add_executor_job(
+                        lambda: self._client.read_holding_registers(address=start_register, count=count, slave=self.config.slave_id)
+                    )
+                except Exception as e:
+                    _LOGGER.debug(f"Failed to read holding registers, trying input registers: {e}")
+                    result = await self.hass.async_add_executor_job(
+                        lambda: self._client.read_input_registers(address=start_register, count=count, slave=self.config.slave_id)
+                    )
                 
                 if result.isError():
                     _LOGGER.error(f"Error reading registers starting at {start_register}: {result}")
-                    for register in chunk:
-                        values[register] = None
                     continue
                     
                 if not result.registers:
                     _LOGGER.error(f"No registers returned for address {start_register}")
-                    for register in chunk:
-                        values[register] = None
                     continue
-                    
-                # Erstelle einen neuen Decoder für jeden Register-Typ
-                decoder = BinaryPayloadDecoder.fromRegisters(result.registers, byteorder=Endian.BIG)
+                
+                # Erstelle einen Decoder mit der korrekten Byte-Reihenfolge
+                decoder = BinaryPayloadDecoder.fromRegisters(
+                    result.registers,
+                    byteorder=Endian.BIG,
+                    wordorder=Endian.BIG
+                )
                 
                 for register in chunk:
                     try:
-                        offset = register - start_register
-                        if offset > 0:
-                            # Für 32-Bit-Werte müssen wir 4 Bytes pro Register überspringen
-                            if register_type in ['int32', 'float32']:
-                                decoder.skip_bytes(offset * 4)
-                            else:
-                                decoder.skip_bytes(offset * 2)
-                                
-                        # Erstelle einen neuen Decoder für jedes Register
-                        register_decoder = BinaryPayloadDecoder.fromRegisters(
-                            result.registers[offset:offset + (2 if register_type in ['int32', 'float32'] else 1)],
-                            byteorder=Endian.BIG
-                        )
-                        
-                        values[register] = self._decode_value(register_decoder, register_type)
+                        if register_type == 'int16':
+                            values[register] = decoder.decode_16bit_int()
+                        elif register_type == 'uint16':
+                            values[register] = decoder.decode_16bit_uint()
+                        elif register_type == 'int32':
+                            values[register] = decoder.decode_32bit_int()
+                        elif register_type == 'float32':
+                            values[register] = decoder.decode_32bit_float()
+                        else:
+                            _LOGGER.error(f"Unsupported register type: {register_type}")
+                            values[register] = None
+                            
                         _LOGGER.debug(f"Successfully decoded register {register}: {values[register]}")
                     except Exception as e:
-                        _LOGGER.error(f"Error decoding register {register} (type: {register_type}): {e}")
+                        _LOGGER.error(f"Error decoding register {register}: {e}")
                         values[register] = None
                         
             except Exception as e:
-                _LOGGER.error(f"Error processing register chunk: {e}")
+                _LOGGER.error(f"Error processing chunk starting at {chunk[0]}: {e}")
                 for register in chunk:
                     values[register] = None
-                
+                    
         return values
 
-    def _decode_value(self, decoder, register_type):
+    def _read_register(self, register: int, count: int = 1) -> Any:
+        """Lese ein einzelnes Register oder eine Gruppe von Registern."""
         try:
-            if register_type == 'int16':
-                return decoder.decode_16bit_int()
-            elif register_type == 'uint16':
-                return decoder.decode_16bit_uint()
-            elif register_type == 'int32':
-                # Für 32-Bit-Werte müssen wir zwei Register lesen
-                return decoder.decode_32bit_int()
-            elif register_type == 'float32':
-                # Für 32-Bit-Float-Werte müssen wir zwei Register lesen
-                return decoder.decode_32bit_float()
-            else:
-                _LOGGER.error(f"Unbekannter Registertyp {register_type}")
-                return None
+            # Versuche zuerst die Holding-Register zu lesen
+            try:
+                return self._client.read_holding_registers(register, count, slave=self.config.slave_id)
+            except Exception as e:
+                _LOGGER.debug(f"Failed to read holding register {register}, trying input register: {e}")
+                # Wenn das fehlschlägt, versuche die Input-Register
+                return self._client.read_input_registers(register, count, slave=self.config.slave_id)
         except Exception as e:
-            _LOGGER.error(f"Error in _decode_value for type {register_type}: {e}")
-            return None
-
-    def _read_register(self, register, count):
-        try:
-            # Stelle sicher, dass die Register-Adresse gültig ist
-            if register < 0 or register > 65535:
-                raise ValueError(f"Invalid register address: {register}")
-                
-            # Stelle sicher, dass die Anzahl der Register gültig ist
-            if count < 1 or count > 125:
-                raise ValueError(f"Invalid register count: {count}")
-                
-            return self._client.read_holding_registers(register, count=count, slave=self.config.slave_id)
-        except Exception as e:
-            _LOGGER.error(f"Error in _read_register: {e}")
+            _LOGGER.error(f"Error reading register {register}: {e}")
             raise
 
     async def async_shutdown(self):
