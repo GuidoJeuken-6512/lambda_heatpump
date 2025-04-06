@@ -1,64 +1,88 @@
-# Modbus Funktionen der Lambda Wärmepumpen Integration
+# Modbus Funktionen der Lambda Wärmepumpen
 
 ## Übersicht
 
-Diese Integration nutzt Modbus TCP zur Kommunikation mit Lambda Wärmepumpen. Die folgenden Funktionen werden implementiert:
+Diese Dokumentation beschreibt die von der Integration genutzten Modbus-Funktionen und deren Verwendung.
 
-### Lesen von Registern
+## Lesen von Registern
 
-1. **Einzelne Register lesen**
-   - Funktion: `_read_register`
-   - Beschreibung: Liest ein einzelnes Register oder eine Gruppe von Registern
-   - Parameter:
-     - `register`: Register-Adresse
-     - `count`: Anzahl der zu lesenden Register
-   - Rückgabewert: Dekodierter Register-Wert
+### Funktion 3: Holding Register lesen
+- **Beschreibung**: Liest Holding Register (4xxxx)
+- **Verwendung**: 
+  - Lesen von Sollwerten
+  - Lesen von Konfigurationsparametern
+  - Lesen von Systeminformationen
 
-2. **Gruppierte Register lesen**
-   - Funktion: `_read_grouped_registers`
-   - Beschreibung: Liest mehrere Register effizient in Chunks
-   - Parameter:
-     - `registers`: Liste der Register-Adressen
-     - `register_type`: Datentyp der Register (int16, uint16, int32, float32)
-   - Rückgabewert: Dictionary mit Register-Adressen und Werten
+### Funktion 4: Input Register lesen
+- **Beschreibung**: Liest Input Register (1xxxx, 2xxxx, 3xxxx)
+- **Verwendung**:
+  - Lesen von Istwerten
+  - Lesen von Statusinformationen
+  - Lesen von Fehlercodes
 
-### Schreiben in Register
+## Schreiben in Register
 
-1. **Einzelnes Register schreiben**
-   - Funktion: `async_write_register`
-   - Beschreibung: Schreibt einen Wert in ein Register
-   - Parameter:
-     - `register`: Register-Adresse
-     - `value`: Zu schreibender Wert
-     - `register_type`: Datentyp des Registers
+### Funktion 6: Einzelnes Holding Register schreiben
+- **Beschreibung**: Schreibt einen einzelnen Wert in ein Holding Register
+- **Verwendung**:
+  - Setzen von Sollwerten
+  - Ändern von Konfigurationsparametern
+  - Steuern von Betriebsmodi
 
-### Fehlerbehandlung
+### Funktion 16: Mehrere Holding Register schreiben
+- **Beschreibung**: Schreibt mehrere Werte in Holding Register
+- **Verwendung**:
+  - Setzen mehrerer Sollwerte gleichzeitig
+  - Konfiguration mehrerer Parameter
 
-1. **Register-Dekodierung**
-   - Unterstützte Datentypen:
-     - int16: 16-Bit Ganzzahl mit Vorzeichen
-     - uint16: 16-Bit Ganzzahl ohne Vorzeichen
-     - int32: 32-Bit Ganzzahl mit Vorzeichen
-     - float32: 32-Bit Gleitkommazahl
+## Fehlerbehandlung
 
-2. **Fehlerprotokollierung**
-   - Detaillierte Logging-Informationen
-   - Fehlerbehandlung für:
-     - Verbindungsfehler
-     - Dekodierungsfehler
-     - Ungültige Register-Adressen
+### Modbus-Exception Codes
+| Code | Beschreibung | Bedeutung |
+|------|--------------|-----------|
+| 1 | Illegal Function | Nicht unterstützte Funktion |
+| 2 | Illegal Data Address | Ungültige Registeradresse |
+| 3 | Illegal Data Value | Ungültiger Datenwert |
+| 4 | Slave Device Failure | Gerätefehler |
 
-### Optimierungen
+### Fehlerbehandlung in der Integration
+- **Wiederholungsversuche**: Automatische Wiederholung bei Kommunikationsfehlern
+- **Timeout**: 3 Sekunden pro Registerzugriff
+- **Logging**: Detaillierte Fehlerprotokolle für Diagnose
 
-1. **Chunk-Verarbeitung**
-   - Automatische Aufteilung großer Register-Gruppen
-   - Konfigurierbare Chunk-Größe
-   - Effiziente Verarbeitung sequentieller Register
+## Register-Adressierung
 
-2. **Caching**
-   - Zwischenspeicherung von Register-Werten
-   - Reduzierung der Modbus-Anfragen
-   - Konfigurierbares Aktualisierungsintervall
+### Adressbereiche
+- **Input Register**: 1000-3999
+- **Holding Register**: 4000-4999
+- **System Register**: 5000-5999
+
+### Adresskonvertierung
+- **1-basierte Adressierung**: Registeradressen beginnen bei 1
+- **0-basierte Adressierung**: Modbus-Adressen beginnen bei 0
+- **Konvertierung**: Registeradresse - 1 = Modbus-Adresse
+
+## Best Practices
+
+1. **Lesen von Registern**
+   - Gruppieren verwandter Register
+   - Minimale Anzahl von Lesevorgängen
+   - Cache-Strategie für häufig gelesene Werte
+
+2. **Schreiben in Register**
+   - Validierung von Werten vor dem Schreiben
+   - Bestätigung nach dem Schreiben
+   - Fehlerbehandlung bei Schreibfehlern
+
+3. **Fehlerbehandlung**
+   - Logging aller Fehler
+   - Automatische Wiederholung bei temporären Fehlern
+   - Benachrichtigung bei kritischen Fehlern
+
+4. **Performance**
+   - Minimale Anzahl von Modbus-Anfragen
+   - Optimale Gruppierung von Registern
+   - Cache-Strategie für häufig gelesene Werte
 
 ## Beispiel-Code
 

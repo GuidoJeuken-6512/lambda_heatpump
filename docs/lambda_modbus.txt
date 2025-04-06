@@ -25,7 +25,7 @@
         - name: EU08L_Hc1_Room_device_temperature
           address: 5004
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -59,7 +59,7 @@
         - name: EU08L_Ambient_Temperature
           address: 0002
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -67,7 +67,7 @@
         - name: EU08L_Ambient_Temperature_1h
           address: 0003
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -75,7 +75,7 @@
         - name: EU08L_Ambient_Temperature_calculated
           address: 0004
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -152,7 +152,7 @@
         - name: EU08L_Hp1_Flow_Line_Temperature
           address: 1004
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.01
           precision: 1
@@ -160,7 +160,7 @@
         - name: EU08L_Hp1_Return_Line_Temperature
           address: 1005
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.01
           precision: 1
@@ -176,7 +176,7 @@
         - name: EU08L_Hp1_Energy_source_inlet_temperature
           address: 1007
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -184,7 +184,7 @@
         - name: EU08L_Hp1_Energy_source_outlet_temperature
           address: 1008
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -240,7 +240,7 @@
         - name: EU08L_Hp1_Requested_flow_line_temperature
           address: 1016
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -248,7 +248,7 @@
         - name: EU08L_Hp1_Requested_return_line_temperature
           address: 1017
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -256,7 +256,7 @@
         - name: EU08L_Hp1_Requested_flow_to_return_line_temperature_difference
           address: 1018
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -303,7 +303,7 @@
         - name: EU08L_Boil1_Actual_high_temperature
           address: 2002
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -311,7 +311,7 @@
         - name: EU08L_Boil1_Actual_low_temperature
           address: 2003
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -320,7 +320,7 @@
         # durch climate entity ersetzt
           address: 2050
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -343,7 +343,7 @@
         - name: EU08L_Hc1_Flow_line_temperature
           address: 5002
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -351,7 +351,7 @@
         - name: EU08L_Hc1_Return_line_temperature
           address: 5003
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -360,7 +360,7 @@
         - name: EU08L_Hc1_Set_flow_line_temperature
           address: 5005
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -375,7 +375,7 @@
         - name: EU08L_Hc1_Set_flow_line_offset_temperature
           address: 5050
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -383,7 +383,7 @@
         - name: EU08L_Hc1_Set_heating_mode_room_temperature
           address: 5051
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1
@@ -391,7 +391,7 @@
         - name: EU08L_Hc1_Set_cooling_mode_room_temperature
           address: 5052
           input_type: holding
-          unit_of_measurement: "°C"
+          unit_of_measurement: "ï¿½C"
           state_class: total
           scale: 0.1
           precision: 1

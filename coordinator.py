@@ -10,6 +10,7 @@ import asyncio
 from functools import wraps
 from dataclasses import dataclass
 import struct
+from homeassistant.core import HomeAssistant
 
 logging.getLogger("pymodbus.logging").setLevel(logging.ERROR)
 
@@ -50,7 +51,7 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
     
     def __init__(
         self,
-        hass: Any,
+        hass: HomeAssistant,
         config: ModbusConfig,
     ):
         """Initialisiere den Lambda-Wärmepumpen-Koordinator.
@@ -59,6 +60,12 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
             hass: Home Assistant Instanz
             config: Modbus-Konfiguration
         """
+        if not hass:
+            raise ValueError("Home Assistant Instanz darf nicht None sein")
+            
+        if not config:
+            raise ValueError("Modbus-Konfiguration darf nicht None sein")
+            
         self.config = config
         self._validate_config()
         
@@ -69,6 +76,7 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
         self._register_cache: Dict[int, Any] = {}
         self._cache_timestamp: Dict[int, float] = {}
         self._cache_duration: float = 5.0  # Cache-Dauer in Sekunden
+        self.data: Dict[str, Any] = {}  # Initialisiere data als leeres Dictionary
 
         _LOGGER.debug(
             "Initializing Coordinator: Host=%s, Port=%d, Slave ID=%d, "
@@ -80,12 +88,16 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
             self.config.connection_timeout
         )
 
-        super().__init__(
-            hass,
-            _LOGGER,
-            name="LambdaHeatpumpCoordinator",
-            update_interval=self.config.update_interval,
-        )
+        try:
+            super().__init__(
+                hass,
+                _LOGGER,
+                name="LambdaHeatpumpCoordinator",
+                update_interval=self.config.update_interval,
+            )
+        except Exception as e:
+            _LOGGER.error("Fehler bei der Initialisierung des Coordinators: %s", e)
+            raise
 
     def _validate_config(self) -> None:
         """Validiere die Modbus-Konfiguration."""
