@@ -82,7 +82,7 @@ CLIMATE_DESCRIPTIONS: tuple[LambdaClimateEntityDescription, ...] = (
         register_mode=1003,  # Operating State
         register_setpoint_high=60,
         register_setpoint_low=20,
-        factor=0.01,
+        factor=0.1,
         force_heat_only=False,
         device_type="heatpump",
         device_index=1,
@@ -161,17 +161,41 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
             self._attr_hvac_modes.append(HVACMode.OFF)
         
         # Register required modbus registers
+        _LOGGER.debug(f"Registering registers for {description.name}:")
+        _LOGGER.debug(f"  - Temperature register: {description.register_temp} ({description.data_type})")
         coordinator.add_register(description.register_temp, description.data_type)
+        
+        _LOGGER.debug(f"  - Setpoint register: {description.register_setpoint} ({description.data_type})")
         coordinator.add_register(description.register_setpoint, description.data_type)
+        
         if description.register_mode is not None:
+            _LOGGER.debug(f"  - Mode register: {description.register_mode} ({description.data_type})")
             coordinator.add_register(description.register_mode, description.data_type)
+            
+        # Debug-Ausgabe der registrierten Register
+        _LOGGER.debug(f"Registered registers for {description.name}:")
+        for register, reg_type in coordinator._registers_to_read.items():
+            _LOGGER.debug(f"  - Register {register} ({reg_type})")
 
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
-        if (value := self.coordinator.data.get(f"register_{self.entity_description.register_temp}")) is not None:
-            return round(value * self.entity_description.factor, 1)
-        return None
+        try:
+            register_key = f"register_{self.entity_description.register_temp}"
+            if register_key not in self.coordinator.data:
+                _LOGGER.debug(f"Temperature register {self.entity_description.register_temp} not found in coordinator data for {self.name}")
+                return None
+                
+            value = self.coordinator.data[register_key]
+            if value is None:
+                _LOGGER.debug(f"Temperature register {self.entity_description.register_temp} has no value for {self.name}")
+                return None
+                
+            return float(value) * self.entity_description.factor
+            
+        except Exception as e:
+            _LOGGER.error(f"Error getting current temperature for {self.name}: {e}")
+            return None
 
     @property
     def target_temperature(self) -> float | None:
@@ -258,8 +282,30 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_available = self.coordinator.last_update_success
-        super()._handle_coordinator_update()
+        try:
+            self._attr_available = self.coordinator.last_update_success
+            if not self._attr_available:
+                _LOGGER.warning(f"{self.name} is not available")
+                return
+                
+            # Überprüfe, ob die erforderlichen Register vorhanden sind
+            temp_key = f"register_{self.entity_description.register_temp}"
+            setpoint_key = f"register_{self.entity_description.register_setpoint}"
+            
+            if temp_key not in self.coordinator.data:
+                _LOGGER.debug(f"Temperature register {self.entity_description.register_temp} not found in coordinator data, waiting for next update")
+                return
+                
+            if setpoint_key not in self.coordinator.data:
+                _LOGGER.debug(f"Setpoint register {self.entity_description.register_setpoint} not found in coordinator data, waiting for next update")
+                return
+                
+            _LOGGER.debug(f"Updating {self.name} with new data")
+            super()._handle_coordinator_update()
+            
+        except Exception as e:
+            _LOGGER.error(f"Error updating {self.name}: {e}")
+            self._attr_available = False
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -295,6 +341,21 @@ async def async_setup_entry(
             # Find matching description
             for description in CLIMATE_DESCRIPTIONS:
                 if description.device_type == device_type and description.device_index == i:
+                    _LOGGER.debug(f"Creating {device_type} {i} with registers: temp={description.register_temp}, setpoint={description.register_setpoint}")
+                    
+                    # Register required modbus registers
+                    coordinator.add_register(description.register_temp, description.data_type)
+                    coordinator.add_register(description.register_setpoint, description.data_type)
+                    if description.register_mode is not None:
+                        coordinator.add_register(description.register_mode, description.data_type)
+                        
+                    # Debug-Ausgabe der registrierten Register
+                    _LOGGER.debug(f"Registered registers for {device_type} {i}:")
+                    _LOGGER.debug(f"  - Temperature: {description.register_temp} ({description.data_type})")
+                    _LOGGER.debug(f"  - Setpoint: {description.register_setpoint} ({description.data_type})")
+                    if description.register_mode is not None:
+                        _LOGGER.debug(f"  - Mode: {description.register_mode} ({description.data_type})")
+                        
                     entities.append(
                         LambdaHeatpumpClimate(
                             coordinator=coordinator,

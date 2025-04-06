@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, Union, List
 import asyncio
 from functools import wraps
 from dataclasses import dataclass
+import struct
 
 logging.getLogger("pymodbus.logging").setLevel(logging.ERROR)
 
@@ -121,7 +122,12 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
             register_type = 'int16'
             
         self._registers_to_read[register] = register_type
-        _LOGGER.debug(f"Added register {register} with type {register_type}")
+        _LOGGER.debug(f"Added register {register} with type {register_type} to read list. Total registers: {len(self._registers_to_read)}")
+        
+        # Debug-Ausgabe aller registrierten Register
+        _LOGGER.debug("Currently registered registers:")
+        for reg, reg_type in self._registers_to_read.items():
+            _LOGGER.debug(f"  - Register {reg} (Type: {reg_type})")
     
     def remove_register(self, register):
         self._registers_to_read.pop(register, None)
@@ -146,25 +152,66 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
             self._connection_status = True
 
     async def _async_update_data(self) -> Dict[str, Any]:
+        """Aktualisiere die Daten von der Wärmepumpe."""
         try:
             await self._ensure_client()
             data = {}
             self._last_successful_update = self.hass.loop.time()
-
+            
+            # Debug-Ausgabe der zu lesenden Register
+            _LOGGER.debug("Registers to read:")
+            for register, reg_type in self._registers_to_read.items():
+                _LOGGER.debug(f"  - Register {register} ({reg_type})")
+            
             # Gruppiere Register für effizientere Abfragen
             grouped_registers = self._group_registers_by_type()
             
             for register_type, registers in grouped_registers.items():
                 try:
+                    _LOGGER.debug(f"Reading registers of type {register_type}: {registers}")
                     result = await self._read_grouped_registers(registers, register_type)
+                    
                     for register, value in result.items():
-                        data[f"register_{register}"] = value
+                        if value is not None:
+                            data[f"register_{register}"] = value
+                            _LOGGER.debug(f"Register {register} value: {value}")
+                        else:
+                            _LOGGER.warning(f"Register {register} returned None")
+                            
                 except Exception as e:
                     _LOGGER.error(f"Error reading registers of type {register_type}: {e}")
                     for register in registers:
                         data[f"register_{register}"] = None
+                        _LOGGER.warning(f"Setting register {register} to None due to error")
 
+            _LOGGER.debug(f"Update completed. Data contains {len(data)} values")
+            _LOGGER.debug(f"Available registers in data: {list(data.keys())}")
+
+            # Debug-Ausgabe für Register 2002 und 2003
+            for register in [2002, 2003]:
+                _LOGGER.debug(f"Starting Modbus read for register {register}")
+                
+                # Lesen der Holding-Register
+                result = await self.hass.async_add_executor_job(
+                    lambda: self._client.read_holding_registers(address=register, count=1, slave=self.config.slave_id)
+                )
+                
+                if result.isError():
+                    _LOGGER.error(f"Modbus error reading register {register}: {result}")
+                    continue
+                    
+                _LOGGER.debug(f"Raw Modbus response for register {register}: {result.registers}")
+                
+                # Decodieren des Wertes
+                value = struct.unpack(">h", struct.pack(">H", result.registers[0]))[0]
+                _LOGGER.debug(f"Decoded int16 value for register {register}: {value}")
+                
+                # Speichern des Wertes
+                data[f"register_{register}"] = value
+                _LOGGER.debug(f"Register {register} value: {value}")
+            
             return data
+            
         except ConnectionException as conn_err:
             self._connection_status = False
             _LOGGER.error("Connection error: %s", conn_err)
@@ -180,6 +227,12 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
             if reg_type not in grouped:
                 grouped[reg_type] = []
             grouped[reg_type].append(register)
+            
+        # Debug-Ausgabe der gruppierten Register
+        _LOGGER.debug("Grouped registers by type:")
+        for reg_type, registers in grouped.items():
+            _LOGGER.debug(f"  - Type {reg_type}: {registers}")
+            
         return grouped
 
     def _split_registers_into_chunks(self, registers: list, max_chunk_size: int = 50) -> list:
@@ -230,11 +283,13 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
                     result = await self.hass.async_add_executor_job(
                         lambda: self._client.read_holding_registers(address=start_register, count=count, slave=self.config.slave_id)
                     )
+                    _LOGGER.debug(f"Holding registers response for {start_register}: {result.registers}")
                 except Exception as e:
                     _LOGGER.debug(f"Failed to read holding registers, trying input registers: {e}")
                     result = await self.hass.async_add_executor_job(
                         lambda: self._client.read_input_registers(address=start_register, count=count, slave=self.config.slave_id)
                     )
+                    _LOGGER.debug(f"Input registers response for {start_register}: {result.registers}")
                 
                 if result.isError():
                     _LOGGER.error(f"Error reading registers starting at {start_register}: {result}")
@@ -254,18 +309,25 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
                 for register in chunk:
                     try:
                         if register_type == 'int16':
-                            values[register] = decoder.decode_16bit_int()
+                            value = decoder.decode_16bit_int()
+                            _LOGGER.debug(f"Decoded int16 value for register {register}: {value}")
+                            values[register] = value
                         elif register_type == 'uint16':
-                            values[register] = decoder.decode_16bit_uint()
+                            value = decoder.decode_16bit_uint()
+                            _LOGGER.debug(f"Decoded uint16 value for register {register}: {value}")
+                            values[register] = value
                         elif register_type == 'int32':
-                            values[register] = decoder.decode_32bit_int()
+                            value = decoder.decode_32bit_int()
+                            _LOGGER.debug(f"Decoded int32 value for register {register}: {value}")
+                            values[register] = value
                         elif register_type == 'float32':
-                            values[register] = decoder.decode_32bit_float()
+                            value = decoder.decode_32bit_float()
+                            _LOGGER.debug(f"Decoded float32 value for register {register}: {value}")
+                            values[register] = value
                         else:
                             _LOGGER.error(f"Unsupported register type: {register_type}")
                             values[register] = None
                             
-                        _LOGGER.debug(f"Successfully decoded register {register}: {values[register]}")
                     except Exception as e:
                         _LOGGER.error(f"Error decoding register {register}: {e}")
                         values[register] = None

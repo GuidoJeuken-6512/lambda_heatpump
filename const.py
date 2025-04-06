@@ -162,7 +162,7 @@ SENSOR_CONFIG = [
         "name": "heatpump_1_flowline_temp",
         "register": 1004,
         "type": "LambdaTemperaturSensor",
-        "factor": 0.01,
+        "factor": 0.1,
         "unit_of_measurement": "°C",
         "data_format": "int16"
     },
@@ -181,6 +181,7 @@ SENSOR_CONFIG = [
         "register": 1006,
         "type": "LambdaFlowSensor",
         "factor": 0.01,
+        "unit_of_measurement": "m³/h",
         "data_format": "int16"
     },
     {

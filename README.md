@@ -59,6 +59,16 @@ Diese Integration ermöglicht die Steuerung und Überwachung von Lambda Wärmepu
 - Sollwert-Register: 3050
 - Temperaturbereich: 30°C - 80°C
 
+## Register-Konfiguration
+
+### Temperatur-Register
+- Register 1004 (Flowline Temperatur): Faktor 0.01, Einheit °C
+- Register 2002 (Boiler High Sensor): Faktor 0.1, Einheit °C
+- Register 2003 (Boiler Low Sensor): Faktor 0.1, Einheit °C
+
+### Volumenstrom-Register
+- Register 1006 (Flow Heat Sink): Faktor 0.01, Einheit m³/h
+
 ## Fehlerbehebung
 
 ### Häufige Probleme

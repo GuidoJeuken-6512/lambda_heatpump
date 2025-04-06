@@ -24,6 +24,8 @@ class LambdaSensorEntityDescription(SensorEntityDescription):
     min_value: float | None = None
     max_value: float | None = None
     states: Optional[Dict[int, str]] = field(default_factory=dict)
+    state_class: SensorStateClass | None = None
+    precision: float | None = None
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -204,9 +206,10 @@ SENSOR_DESCRIPTIONS: Final[tuple[LambdaSensorEntityDescription, ...]] = (
         name="Flowline Temperature",
         register=1004,
         data_type="int16",
-        factor=0.01,
+        factor=0.1,
         unit_of_measurement="°C",
-        device_class=SensorDeviceClass.TEMPERATURE
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT
     ),
     LambdaSensorEntityDescription(
         key="heatpump_1_returnline_temp",
