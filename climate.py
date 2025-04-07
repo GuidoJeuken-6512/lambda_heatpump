@@ -181,7 +181,7 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
         try:
-            register_key = f"register_{self.entity_description.register_temp}"
+            register_key = str(self.entity_description.register_temp)
             if register_key not in self.coordinator.data:
                 _LOGGER.debug(f"Temperature register {self.entity_description.register_temp} not found in coordinator data for {self.name}")
                 return None
@@ -200,7 +200,7 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
     @property
     def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
-        if (value := self.coordinator.data.get(f"register_{self.entity_description.register_setpoint}")) is not None:
+        if (value := self.coordinator.data.get(str(self.entity_description.register_setpoint))) is not None:
             return round(value * self.entity_description.factor, 1)
         return None
 
@@ -213,7 +213,7 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
         if self.entity_description.register_mode is None:
             return HVACMode.HEAT
             
-        if (mode := self.coordinator.data.get(f"register_{self.entity_description.register_mode}")) is not None:
+        if (mode := self.coordinator.data.get(str(self.entity_description.register_mode))) is not None:
             if self.entity_description.supports_cooling:
                 return HVACMode.COOL if mode == 2 else HVACMode.HEAT
             return HVACMode.HEAT if mode else HVACMode.OFF
@@ -289,8 +289,8 @@ class LambdaHeatpumpClimate(CoordinatorEntity[LambdaHeatpumpCoordinator], Climat
                 return
                 
             # Überprüfe, ob die erforderlichen Register vorhanden sind
-            temp_key = f"register_{self.entity_description.register_temp}"
-            setpoint_key = f"register_{self.entity_description.register_setpoint}"
+            temp_key = str(self.entity_description.register_temp)
+            setpoint_key = str(self.entity_description.register_setpoint)
             
             if temp_key not in self.coordinator.data:
                 _LOGGER.debug(f"Temperature register {self.entity_description.register_temp} not found in coordinator data, waiting for next update")

@@ -1,0 +1,37 @@
+---
+description: Regeln für Home Assistant 2025.3 Kompatibilität
+globs: ["lambda_wp/**/*.py"]
+alwaysApply: true
+---
+
+# Home Assistant 2025.3 Kompatibilitätsregeln
+
+## Allgemeine Regeln
+- Alle Imports müssen mit der neuesten Home Assistant 2025.3 API kompatibel sein
+- Keine veralteten oder veralteten APIs verwenden
+- Neue Features und Best Practices von HA 2025.3 bevorzugen
+
+## Spezifische Regeln
+- Coordinator-Klassen müssen von `DataUpdateCoordinator` erben
+- Entity-Klassen müssen die neuesten Basisklassen verwenden
+- Service-Definitionen müssen das neue YAML-Format verwenden
+- Konfigurationsflüsse müssen das neue Schema-Format verwenden
+- Übersetzungen müssen im neuen Python-Format vorliegen
+- Alle Methoden müssen korrekt typisiert sein
+- Async/Await muss konsequent verwendet werden
+- Fehlerbehandlung muss den HA-Standards entsprechen
+
+## Verbotene Praktiken
+- Keine direkten Modbus-Aufrufe ohne Coordinator
+- Keine synchronen I/O-Operationen
+- Keine veralteten Konfigurationsmethoden
+- Keine veralteten Service-Definitionen
+- Keine veralteten Übersetzungsformate
+
+## Best Practices
+- Immer die neueste HA-API-Dokumentation konsultieren
+- Regelmäßige Kompatibilitätsprüfungen durchführen
+- Fehlerbehandlung nach HA-Standards implementieren
+- Logging nach HA-Standards durchführen
+- Typisierung konsequent verwenden
+- Async/Await korrekt implementieren
