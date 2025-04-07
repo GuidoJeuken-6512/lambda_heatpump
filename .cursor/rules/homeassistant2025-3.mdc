@@ -3,13 +3,43 @@ description: Regeln für Home Assistant 2025.3 Kompatibilität
 globs: ["lambda_wp/**/*.py"]
 alwaysApply: true
 ---
-
 # Home Assistant 2025.3 Kompatibilitätsregeln
 
 ## Allgemeine Regeln
 - Alle Imports müssen mit der neuesten Home Assistant 2025.3 API kompatibel sein
 - Keine veralteten oder veralteten APIs verwenden
 - Neue Features und Best Practices von HA 2025.3 bevorzugen
+
+## Datenstruktur und Koordinator-Regeln
+- Register-IDs MÜSSEN immer als String gespeichert werden: `str(register_id)`
+- KEINE Präfixe (wie "register_") in Schlüsseln verwenden
+- Einheitliche Datenstruktur im Coordinator:
+  ```python
+  # RICHTIG:
+  self.data[str(register_id)] = value
+  
+  # FALSCH:
+  self.data[f"register_{register_id}"] = value
+  self.data[register_id] = value  # nicht als String
+  ```
+- Konsistente Datenabfrage in Entitäten:
+  ```python
+  # RICHTIG:
+  register_key = str(self.entity_description.register_id)
+  value = self.coordinator.data.get(register_key)
+  
+  # FALSCH:
+  register_key = f"register_{self.entity_description.register_id}"
+  value = self.coordinator.data.get(register_id)  # nicht als String
+  ```
+- Debug-Logging muss die tatsächlichen Schlüssel verwenden:
+  ```python
+  # RICHTIG:
+  _LOGGER.debug(f"Register {register_key} = {value}")
+  
+  # FALSCH:
+  _LOGGER.debug(f"Register register_{register_key} = {value}")
+  ```
 
 ## Spezifische Regeln
 - Coordinator-Klassen müssen von `DataUpdateCoordinator` erben
@@ -21,12 +51,21 @@ alwaysApply: true
 - Async/Await muss konsequent verwendet werden
 - Fehlerbehandlung muss den HA-Standards entsprechen
 
+## Code-Qualität
+- Keine redundanten Debug-Operationen
+- Keine doppelten Datenabrufe
+- Einheitliche Fehlerbehandlung in allen Methoden
+- Typisierung für alle Variablen und Rückgabewerte
+- Dokumentation der Datenstruktur im Code
+
 ## Verbotene Praktiken
 - Keine direkten Modbus-Aufrufe ohne Coordinator
 - Keine synchronen I/O-Operationen
 - Keine veralteten Konfigurationsmethoden
 - Keine veralteten Service-Definitionen
 - Keine veralteten Übersetzungsformate
+- KEINE gemischten Datenstrukturen (mit/ohne Präfix)
+- KEINE inkonsistente Typbehandlung von Register-IDs
 
 ## Best Practices
 - Immer die neueste HA-API-Dokumentation konsultieren
@@ -35,3 +74,5 @@ alwaysApply: true
 - Logging nach HA-Standards durchführen
 - Typisierung konsequent verwenden
 - Async/Await korrekt implementieren
+- Unit-Tests für Datenkonvertierung und -zugriffe
+- Code-Reviews mit Fokus auf Datenstruktur-Konsistenz 
