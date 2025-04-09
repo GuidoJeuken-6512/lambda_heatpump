@@ -101,7 +101,7 @@ class LambdaHeatpumpNumber(CoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self):
-        value = self.coordinator.data.get(f"register_{self._register}")
+        value = self.coordinator.data.get(str(self._register))
         if value is not None:
             return value * self.entity_description.factor
         return None

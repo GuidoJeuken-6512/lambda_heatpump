@@ -727,7 +727,7 @@ class LambdaHeatpumpSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        value = self.coordinator.data.get(f"register_{self._register}")
+        value = self.coordinator.data.get(str(self._register))
         if value is not None:
             # Wenn der Sensor ein Fehlernummer-Sensor ist, geben wir den Wert als Integer zurück
             if "error_number" in self.entity_description.key:

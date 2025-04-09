@@ -185,7 +185,7 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
                     
                     for register, value in result.items():
                         if value is not None:
-                            data[f"register_{register}"] = value
+                            data[str(register)] = value
                             _LOGGER.debug(f"Register {register} value: {value}")
                         else:
                             _LOGGER.warning(f"Register {register} returned None")
@@ -193,7 +193,7 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
                 except Exception as e:
                     _LOGGER.error(f"Error reading registers of type {register_type}: {e}")
                     for register in registers:
-                        data[f"register_{register}"] = None
+                        data[str(register)] = None
                         _LOGGER.warning(f"Setting register {register} to None due to error")
 
             _LOGGER.debug(f"Update completed. Data contains {len(data)} values")
@@ -219,7 +219,7 @@ class LambdaHeatpumpCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug(f"Decoded int16 value for register {register}: {value}")
                 
                 # Speichern des Wertes
-                data[f"register_{register}"] = value
+                data[str(register)] = value
                 _LOGGER.debug(f"Register {register} value: {value}")
             
             return data
