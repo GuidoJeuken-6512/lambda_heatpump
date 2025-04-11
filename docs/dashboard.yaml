@@ -1,0 +1,108 @@
+title: Lambda Heatpump Sensor Dashboard
+views:
+  - title: Sensor Übersicht
+    path: sensor-uebersicht
+    badges: []
+    cards:
+      - type: entities
+        title: Sensor Liste
+        show_header_toggle: false
+        entities:
+          - entity: sensor.error_number
+            name: "0 - Error Number"
+          - entity: sensor.actual_ambient_temperature
+            name: "2 - Actual Ambient Temperature"
+          - entity: sensor.average_ambient_temperature_1h
+            name: "3 - Average Ambient Temperature (1h)"
+          - entity: sensor.calculated_ambient_temperature
+            name: "4 - Calculated Ambient Temperature"
+          - entity: sensor.actual_power_input
+            name: "102 - Actual Power Input"
+          - entity: sensor.actual_power_consumption
+            name: "103 - Actual Power Consumption"
+          - entity: sensor.power_consumption_setpoint
+            name: "104 - Power Consumption Setpoint"
+          - entity: sensor.error_state
+            name: "1000 - Error State"
+          - entity: sensor.error_number_2
+            name: "Error Number 2"
+          - entity: sensor.error_number_3
+            name: "Error Number 3"
+          - entity: sensor.error_number_4
+            name: "Error Number 4"
+          - entity: sensor.error_number_5
+            name: "Error Number 5"
+          - entity: sensor.error_number
+            name: "1001 - Error Number"
+          - entity: sensor.operating_state
+            name: "1 - Operating State"
+          - entity: sensor.operating_state_2
+            name: "Operating State 2"
+          - entity: sensor.operating_state_3
+            name: "Operating State 3"
+          - entity: sensor.operating_state_4
+            name: "Operating State 4"
+          - entity: sensor.flowline_temperature
+            name: "1004 - Flowline Temperature"
+          - entity: sensor.returnline_temperature
+            name: "1005 - Returnline Temperature"
+          - entity: sensor.flow_heat_sink
+            name: "1006 - Flow Heat Sink"
+          - entity: sensor.energy_source_inlet_temperature
+            name: "1007 - Energy Source Inlet Temperature"
+          - entity: sensor.energy_source_outlet_temperature
+            name: "1008 - Energy Source Outlet Temperature"
+          - entity: sensor.compressor_unit_rating
+            name: "1010 - Compressor Unit Rating"
+          - entity: sensor.actual_heating_capacity
+            name: "1011 - Actual Heating Capacity"
+          - entity: sensor.frequency_inverter_actual_power_consumption
+            name: "1012 - Frequency Inverter Actual Power Consumption"
+          - entity: sensor.coefficient_of_performance
+            name: "1013 - Coefficient of Performance"
+          - entity: sensor.password_register_to_release_modbus_request_registers
+            name: "1014 - Password Register to Release Modbus Request Registers"
+          - entity: sensor.request_type
+            name: "1015 - Request Type"
+          - entity: sensor.requested_flow_line_temperature
+            name: "1016 - Requested Flow Line Temperature"
+          - entity: sensor.requested_return_line_temperature
+            name: "1017 - Requested Return Line Temperature"
+          - entity: sensor.requested_temperature_difference_between_flow_line_and_return_line
+            name: "1018 - Requested Temperature Difference between Flow Line and Return Line"
+          - entity: sensor.relais_state_for_2nd_heating_stage
+            name: "1019 - Relais State for 2nd Heating Stage"
+          - entity: sensor.accumulated_electrical_energy_consumption_of_compressor_unit
+            name: "1020 - Accumulated Electrical Energy Consumption of Compressor Unit"
+          - entity: sensor.accumulated_thermal_energy_output_of_compressor_unit
+            name: "1022 - Accumulated Thermal Energy Output of Compressor Unit"
+          - entity: sensor.quit_all_active_heat_pump_errors
+            name: "1050 - Quit All Active Heat Pump Errors"
+          - entity: sensor.actual_temperature_boiler_high_sensor
+            name: "2002 - Actual Temperature Boiler High Sensor"
+          - entity: sensor.actual_temperature_boiler_low_sensor
+            name: "2003 - Actual Temperature Boiler Low Sensor"
+          - entity: sensor.boiler_1_operating_state
+            name: "2001 - Boiler 1 Operating State"
+          - entity: sensor.actual_temperature_flow_line_sensor
+            name: "5002 - Actual Temperature Flow Line Sensor"
+          - entity: sensor.actual_temperature_return_line_sensor
+            name: "5003 - Actual Temperature Return Line Sensor"
+          - entity: sensor.actual_temperature_room_device_sensor
+            name: "5004 - Actual Temperature Room Device Sensor"
+          - entity: sensor.setpoint_temperature_flow_line
+            name: "5005 - Setpoint Temperature Flow Line"
+          - entity: sensor.operating_mode
+            name: "5006 - Operating Mode"
+          - entity: sensor.setting_for_flow_line_temperature_setpoint_offset
+            name: "5050 - Setting for Flow Line Temperature Setpoint Offset"
+          - entity: sensor.setting_for_heating_mode_room_setpoint_temperature
+            name: "5051 - Setting for Heating Mode Room Setpoint Temperature"
+          - entity: sensor.setting_for_cooling_mode_room_setpoint_temperature
+            name: "5052 - Setting for Cooling Mode Room Setpoint Temperature"
+          - entity: sensor.backup_backup_manager_zustand
+            name: "Backup Manager Zustand"
+          - entity: sensor.backup_letztes_erfolgreiches_automatisches_backup
+            name: "Letztes Erfolgreiches Automatisches Backup"
+          - entity: sensor.backup_nachstes_geplantes_automatisches_backup
+            name: "Nächstes Geplantes Automatisches Backup"
